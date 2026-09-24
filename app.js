@@ -503,7 +503,7 @@ $$('.seg [data-net]').forEach((b) => b.addEventListener('click', () => {
 }));
 
 async function loadQR(s) {
-  const key = `${s.ingest.anywhere}|${s.ingest.lan}`;
+  const key = `${s.ingest.anywhere}|${s.ingest.lan}|${s.ingest.tailscale}`;
   if (key === qrKey || qrLoading) return;
   qrLoading = true;
   try {
@@ -514,9 +514,11 @@ async function loadQR(s) {
 }
 
 function paintQR() {
+  const hasTs = !!(qrData && qrData.tailscale);
+  $('.seg [data-net="tailscale"]').hidden = !hasTs;
+  if (net === 'tailscale' && !hasTs && qrData) net = 'anywhere';
   $$('.seg [data-net]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.net === net)));
   const set = qrData && qrData[net];
-  const rtmpPort = S?.settings.rtmpPort ?? 1935;
   $('#qrRow').hidden = !set;
   if (set) {
     $('#qrIrlpro').src = set.irlpro;
@@ -525,15 +527,45 @@ function paintQR() {
   } else {
     $('#qrUrl').textContent = '–';
   }
-  $('#qrNote').textContent = net === 'anywhere'
-    ? (set ? `Works over mobile data. Your router must forward TCP port ${rtmpPort} to this PC.`
-           : 'Set up Dynamic DNS (or a public host in Settings) to stream over mobile data.')
-    : 'Works when your phone is on the same network as this PC.';
+  $('#qrNote').textContent = {
+    anywhere: set ? 'For mobile data. The check below shows whether phones can actually reach this PC.'
+                  : 'Set up Dynamic DNS (or a public host in Settings) to stream over mobile data.',
+    lan: 'Works when your phone is on the same network as this PC.',
+    tailscale: 'Works anywhere, with no router setup, while Tailscale is on for both your phone and this PC.',
+  }[net];
+  $('#reach').hidden = net !== 'anywhere';
 }
+
+// "Can a phone on mobile data reach this PC?" - answered by the relay
+// connecting back from outside (see PortMapper in the app)
+function renderReach(s) {
+  const p = s.portMap || {};
+  const el = $('#reachText');
+  let cls = 'unknown', text;
+  if (!s.server.running) text = 'Start the RTMP server to check.';
+  else if (p.checking) text = 'Checking from the internet…';
+  else if (p.reachable === true) {
+    cls = 'ok';
+    text = `Phones on mobile data can reach this PC.${p.method ? ` Port ${p.port} was opened on your router automatically (${p.method}).` : ''}`;
+  } else if (p.reachable === false) {
+    cls = 'bad';
+    const port = s.settings.rtmpPort;
+    const lanHost = (s.ingest.lan || '').replace(/^rtmp:\/\/([^:/]+).*$/, '$1');
+    const cause = (p.error || `your router isn't letting port ${port} through, or Windows Firewall blocked nginx`).replace(/\.$/, '');
+    text = `Phones on mobile data can’t reach this PC yet: ${cause}. ` +
+      (p.cgnat ? '' : `Fix it once by turning on UPnP in your router’s settings, or by forwarding TCP port ${port} to ${lanHost}. `) +
+      (s.ingest.tailscale ? 'Or switch to the Tailscale QR code above.' : 'No router access? Install Tailscale (free) on this PC and your phone.');
+  } else text = p.error || 'Not checked yet.';
+  el.className = `reach ${cls}`;
+  el.textContent = text;
+  $('#reachCheck').disabled = !s.server.running || p.checking;
+}
+$('#reachCheck').addEventListener('click', (e) => quiet(run(e.currentTarget, 'portmap.check', null, { ok: 'Checking…' })));
 
 function renderPhone(s) {
   loadQR(s);
   if (!qrData) paintQR();
+  renderReach(s);
 }
 
 // ---------- render: server ----------
@@ -678,7 +710,7 @@ const setForm = managedForm($('#setForm'), {
     f.obsHost.value = st.obsHost; f.obsPort.value = st.obsPort;
     f.obsPassword.value = st.hasObsPassword ? MASK : '';
     f.streamKey.value = st.streamKey; f.rtmpPort.value = st.rtmpPort;
-    f.publicHost.value = st.publicHost; f.autoServer.checked = st.autoServer;
+    f.publicHost.value = st.publicHost; f.autoServer.checked = st.autoServer; f.autoPortForward.checked = st.autoPortForward;
     f.brbChannel.value = st.brbChannel; f.statPort.value = st.statPort; f.uiPort.value = st.uiPort;
   },
   collect() {
@@ -686,7 +718,7 @@ const setForm = managedForm($('#setForm'), {
     return {
       obsHost: f.obsHost.value.trim(), obsPort: +f.obsPort.value, obsPassword: f.obsPassword.value,
       streamKey: f.streamKey.value.trim(), rtmpPort: +f.rtmpPort.value, publicHost: f.publicHost.value.trim(),
-      autoServer: f.autoServer.checked, brbChannel: f.brbChannel.value.trim(),
+      autoServer: f.autoServer.checked, autoPortForward: f.autoPortForward.checked, brbChannel: f.brbChannel.value.trim(),
       statPort: +f.statPort.value, uiPort: +f.uiPort.value,
     };
   },

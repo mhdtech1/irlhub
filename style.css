@@ -301,3 +301,13 @@ body.dock main { padding: 8px; }
 body.dock .grid { display: block; }
 body.dock #phoneCard { box-shadow: none; }
 body.dock .qr img { width: 150px; height: 150px; }
+
+/* phone reachability */
+.reach-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; }
+.reach { flex: 1; margin: 0; font-size: 13px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); }
+.reach::before { font-weight: 800; margin-right: 6px; }
+.reach.ok { border-color: color-mix(in srgb, var(--good) 45%, var(--border)); background: var(--good-bg); }
+.reach.ok::before { content: "✓"; color: var(--good); }
+.reach.bad { border-color: color-mix(in srgb, var(--critical) 45%, var(--border)); background: var(--critical-bg); }
+.reach.bad::before { content: "✕"; color: var(--critical); }
+.reach.unknown::before { content: "?"; color: var(--muted); }

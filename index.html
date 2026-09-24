@@ -161,6 +161,7 @@
           <div class="seg" role="tablist" aria-label="Network">
             <button role="tab" type="button" data-net="anywhere" aria-selected="true">Anywhere</button>
             <button role="tab" type="button" data-net="lan" aria-selected="false">Same Wi-Fi</button>
+            <button role="tab" type="button" data-net="tailscale" aria-selected="false" hidden>Tailscale</button>
           </div>
         </div>
         <p class="muted" id="qrHint">Scan with your phone's camera app, not from inside the streaming app.</p>
@@ -170,6 +171,10 @@
         </div>
         <div class="copy-field"><code id="qrUrl">–</code><button class="btn sm" type="button" data-copy="qrUrl">Copy</button></div>
         <p class="muted small" id="qrNote"></p>
+        <div class="reach-row" id="reach">
+          <p class="reach unknown" id="reachText">Not checked yet.</p>
+          <button class="btn sm" id="reachCheck" type="button">Check again</button>
+        </div>
       </article>
 
       <!-- server -->
@@ -247,6 +252,7 @@
             <label>RTMP port<input name="rtmpPort" type="number" min="1" max="65535"></label>
             <label>Public host <small>(optional override)</small><input name="publicHost" placeholder="uses DDNS hostname" autocomplete="off" spellcheck="false"></label>
             <label class="check"><input type="checkbox" name="autoServer"> Start the server when IRL Hub starts</label>
+            <label class="check"><input type="checkbox" name="autoPortForward"> Open the port on my router automatically (UPnP)</label>
           </fieldset>
           <fieldset>
             <legend>Advanced</legend>

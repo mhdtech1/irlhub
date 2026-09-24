@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>IRL Hub</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/icon.png" alt="" width="26" height="26"><span>IRL Hub</span></a>
+  <div class="topbar-mid" id="pcPicker" hidden>
+    <select id="pcSelect" aria-label="Choose a PC"></select>
+    <button class="btn ghost sm" id="managePcs" type="button">Manage</button>
+  </div>
+  <div class="topbar-right">
+    <span class="conn" id="connBadge" hidden></span>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8A9 9 0 0 0 12 3Z"/></svg>
+    </button>
+    <div class="user" id="userBox" hidden>
+      <img id="userAvatar" alt="" width="28" height="28">
+      <span id="userName"></span>
+      <button class="btn ghost sm" id="logoutBtn" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+  <div class="loading" id="loading">Loading…</div>
+
+  <!-- website: signed out -->
+  <section id="landing" class="landing" hidden>
+    <h1 class="hero-title">Run your IRL stream<br>from anywhere.</h1>
+    <p class="hero-sub">Auto-switch OBS scenes when your bitrate drops, set up your phone with one scan, and control it all from any browser.</p>
+    <div class="landing-actions">
+      <button class="btn twitch lg" id="twitchBtn" type="button" hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4.3 3 3 6.4v13.3h4.6V22h2.6l2.4-2.3h3.7l5-4.9V3H4.3Zm15.2 11-2.9 2.9h-4.6l-2.4 2.4v-2.4H5.8V4.8h13.7V14ZM16.6 8h-1.7v5h1.7V8Zm-4.6 0h-1.7v5H12V8Z"/></svg>
+        Sign in with Twitch
+      </button>
+      <a class="btn ghost lg" id="downloadBtnLanding" href="#" hidden>Download for Windows</a>
+    </div>
+    <p class="notice" id="twitchOff" hidden>Twitch sign-in isn't set up on this server yet.</p>
+    <p class="notice err" id="signinErr" hidden>Sign-in didn't work. Try again.</p>
+    <form id="devLogin" class="dev-login" hidden>
+      <label for="devPw">Admin password (dev login)</label>
+      <div class="row"><input id="devPw" type="password" autocomplete="current-password" required><button class="btn" type="submit">Sign in</button></div>
+    </form>
+    <ul class="features">
+      <li><b>Auto scene switching</b><span>Live, Low bitrate, and Offline, picked from your feed's bitrate in real time.</span></li>
+      <li><b>Your own RTMP server</b><span>Runs on your PC. Your phone streams straight to it, with no cloud relay in the middle.</span></li>
+      <li><b>One-scan phone setup</b><span>QR codes for IRL Pro and Moblin, with your stream key filled in.</span></li>
+      <li><b>Multistream</b><span>Send one OBS stream to Twitch, YouTube, and more at once.</span></li>
+    </ul>
+  </section>
+
+  <!-- website: link a PC -->
+  <section id="linkView" class="link-view" hidden>
+    <h1>Link your PC</h1>
+    <ol class="steps">
+      <li>
+        <b>Get IRL Hub for Windows</b>
+        <span>It runs your RTMP server and talks to OBS. It opens in your browser and lives in the system tray.</span>
+        <a class="btn" id="downloadBtn" href="#" hidden>Download IRL Hub.exe</a>
+      </li>
+      <li><b>In IRL Hub, choose “Link to website”</b><span>It shows an 8-character code.</span></li>
+      <li>
+        <b>Enter the code here</b>
+        <form id="linkForm" class="row">
+          <input id="linkCode" placeholder="ABCD-2345" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" required aria-label="Link code">
+          <button class="btn primary" type="submit">Link PC</button>
+        </form>
+      </li>
+    </ol>
+    <button class="btn ghost" id="linkBack" type="button" hidden>Back to dashboard</button>
+  </section>
+
+  <!-- website: manage PCs -->
+  <dialog id="pcDialog" class="dialog">
+    <h2>Your PCs</h2>
+    <ul id="pcList" class="pc-list"></ul>
+    <div class="dialog-actions">
+      <button class="btn" id="addPc" type="button">Link another PC</button>
+      <button class="btn ghost" type="button" data-close>Close</button>
+    </div>
+  </dialog>
+
+  <!-- dashboard (local + website) -->
+  <section id="dash" hidden>
+    <div class="banner" id="banner" hidden></div>
+
+    <div class="grid">
+      <!-- feed -->
+      <article class="card span-2" id="feedCard">
+        <div class="feed-head">
+          <div>
+            <div class="status-pill" id="feedPill"></div>
+            <div class="big"><span id="feedKbps">–</span><small> kbps</small></div>
+            <div class="meta" id="feedMeta"></div>
+          </div>
+          <div class="feed-side">
+            <div class="kv"><span>Feed uptime</span><b id="feedUptime">–</b></div>
+            <div class="kv"><span>RTMP server</span><b id="srvStatus">–</b></div>
+          </div>
+        </div>
+        <figure class="chart" id="chart">
+          <figcaption class="chart-title">Phone bitrate, last 2 minutes</figcaption>
+          <svg id="chartSvg" role="img" aria-labelledby="chartSummary"></svg>
+          <div class="tooltip" id="chartTip" hidden></div>
+          <p class="chart-summary" id="chartSummary"></p>
+        </figure>
+      </article>
+
+      <!-- OBS -->
+      <article class="card" id="obsCard">
+        <h2>OBS</h2>
+        <div class="kv"><span>Connection</span><b id="obsConn">–</b></div>
+        <div class="kv"><span>Stream</span><b id="obsStream">–</b></div>
+        <div class="kv"><span>Scene</span><b id="obsScene">–</b></div>
+        <div class="kv" id="obsCongRow" hidden><span>Network congestion</span><b id="obsCong"></b></div>
+        <p class="err-text" id="obsErr" hidden></p>
+        <div class="btn-row">
+          <button class="btn primary" id="streamBtn" type="button" disabled>Start stream</button>
+          <button class="btn" id="refreshFeedBtn" type="button" disabled title="Restart the IRL Feed media source if the picture froze">Refresh feed</button>
+        </div>
+      </article>
+
+      <!-- scenes -->
+      <article class="card span-2" id="scenesCard">
+        <div class="card-head">
+          <h2>Scenes</h2>
+          <button class="btn sm" id="setupScenesBtn" type="button" disabled>Set up OBS scenes</button>
+        </div>
+        <div class="scene-grid" id="sceneGrid"><p class="muted">Connect OBS to see your scenes.</p></div>
+      </article>
+
+      <!-- switcher -->
+      <article class="card" id="switcherCard">
+        <div class="card-head">
+          <h2>Auto-switcher</h2>
+          <label class="switch"><input type="checkbox" id="swEnabled"><span></span><span class="sr">Enable auto-switcher</span></label>
+        </div>
+        <p class="sw-status" id="swStatus">–</p>
+        <form id="swForm" class="form">
+          <label>Live scene<select name="liveScene"></select></label>
+          <label>Low-bitrate scene<select name="lowScene"></select></label>
+          <label>Offline scene<select name="offlineScene"></select></label>
+          <label>Low bitrate below <span class="unit"><input name="lowKbps" type="number" min="0" max="100000" step="50"> kbps</span></label>
+          <label class="check"><input type="checkbox" name="onlyWhenStreaming"> Only while OBS is live</label>
+          <div class="form-actions" hidden><button class="btn primary sm" type="submit">Save</button><button class="btn ghost sm" type="button" data-cancel>Cancel</button></div>
+        </form>
+        <details class="log"><summary>Recent activity</summary><ul id="swLog"></ul></details>
+      </article>
+
+      <!-- phone -->
+      <article class="card span-2" id="phoneCard">
+        <div class="card-head">
+          <h2>Phone setup</h2>
+          <div class="seg" role="tablist" aria-label="Network">
+            <button role="tab" type="button" data-net="anywhere" aria-selected="true">Anywhere</button>
+            <button role="tab" type="button" data-net="lan" aria-selected="false">Same Wi-Fi</button>
+          </div>
+        </div>
+        <p class="muted" id="qrHint">Scan with your phone's camera app, not from inside the streaming app.</p>
+        <div class="qr-row" id="qrRow">
+          <figure class="qr"><img id="qrIrlpro" alt="QR code for IRL Pro"><figcaption><b>IRL Pro</b> Android</figcaption></figure>
+          <figure class="qr"><img id="qrMoblin" alt="QR code for Moblin"><figcaption><b>Moblin</b> iPhone</figcaption></figure>
+        </div>
+        <div class="copy-field"><code id="qrUrl">–</code><button class="btn sm" type="button" data-copy="qrUrl">Copy</button></div>
+        <p class="muted small" id="qrNote"></p>
+      </article>
+
+      <!-- server -->
+      <article class="card" id="serverCard">
+        <h2>RTMP server</h2>
+        <div class="kv"><span>Status</span><b id="srvStatus2">–</b></div>
+        <div class="kv"><span>Port</span><b id="srvPort">–</b></div>
+        <p class="err-text" id="srvErr" hidden></p>
+        <div class="kv"><span>Stream key</span>
+          <b class="key"><code id="streamKey">••••••••</code>
+            <button class="link-btn" id="revealKey" type="button">Show</button></b>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="srvToggle" type="button">Stop</button>
+          <button class="btn ghost" id="srvRestart" type="button">Restart</button>
+          <button class="btn ghost" id="regenKey" type="button">New key</button>
+        </div>
+        <p class="muted small">OBS pulls the feed from <code id="obsIngest">–</code></p>
+      </article>
+
+      <!-- DDNS -->
+      <article class="card" id="ddnsCard">
+        <h2>Dynamic DNS</h2>
+        <p class="muted small">Keeps a hostname pointed at your home IP so the phone QR code keeps working when your ISP changes it.</p>
+        <form id="ddnsForm" class="form">
+          <label>Provider
+            <select name="provider">
+              <option value="">Off</option>
+              <option value="namecheap">Namecheap</option>
+              <option value="cloudflare">Cloudflare</option>
+              <option value="duckdns">DuckDNS</option>
+            </select>
+          </label>
+          <label data-ddns>Hostname<input name="hostname" placeholder="irl.example.com" autocomplete="off" spellcheck="false"></label>
+          <label data-ddns><span id="ddnsSecretLabel">Password</span><input name="secret" type="password" autocomplete="new-password"></label>
+          <label data-ddns-cf>Zone ID <small>(optional)</small><input name="zoneId" autocomplete="off" spellcheck="false"></label>
+          <div class="form-actions" hidden><button class="btn primary sm" type="submit">Save</button><button class="btn ghost sm" type="button" data-cancel>Cancel</button></div>
+        </form>
+        <div class="kv"><span>Public IP</span><b id="ddnsIp">–</b></div>
+        <div class="kv"><span>Last update</span><b id="ddnsLast">–</b></div>
+        <p class="err-text" id="ddnsErr" hidden></p>
+        <button class="btn sm" id="ddnsNow" type="button">Update now</button>
+      </article>
+
+      <!-- multistream -->
+      <article class="card" id="msCard">
+        <div class="card-head"><h2>Multistream</h2><span class="tag" id="msLive" hidden>Relaying</span></div>
+        <p class="muted small">Send OBS to <code id="msTarget">rtmp://127.0.0.1:1935/restream</code> and it goes out to every enabled platform.</p>
+        <form id="msForm" class="form">
+          <ul class="ms-list" id="msList"></ul>
+          <div class="btn-row">
+            <button class="btn sm" type="button" data-add="twitch">+ Twitch</button>
+            <button class="btn sm" type="button" data-add="youtube">+ YouTube</button>
+            <button class="btn sm" type="button" data-add="custom">+ Custom</button>
+          </div>
+          <div class="form-actions" hidden><button class="btn primary sm" type="submit">Save</button><button class="btn ghost sm" type="button" data-cancel>Cancel</button></div>
+        </form>
+        <button class="btn ghost sm" id="routeMs" type="button">Point OBS at multistream</button>
+      </article>
+
+      <!-- settings -->
+      <article class="card span-2" id="settingsCard">
+        <h2>Settings</h2>
+        <form id="setForm" class="form cols">
+          <fieldset>
+            <legend>OBS WebSocket</legend>
+            <label>Host<input name="obsHost" autocomplete="off" spellcheck="false"></label>
+            <label>Port<input name="obsPort" type="number" min="1" max="65535"></label>
+            <label>Password<input name="obsPassword" type="password" autocomplete="new-password"></label>
+            <p class="muted small" id="obsDetectedNote">In OBS: Tools → WebSocket Server Settings → Show Connect Info.</p>
+          </fieldset>
+          <fieldset>
+            <legend>RTMP server</legend>
+            <label>Stream key<input name="streamKey" autocomplete="off" spellcheck="false"></label>
+            <label>RTMP port<input name="rtmpPort" type="number" min="1" max="65535"></label>
+            <label>Public host <small>(optional override)</small><input name="publicHost" placeholder="uses DDNS hostname" autocomplete="off" spellcheck="false"></label>
+            <label class="check"><input type="checkbox" name="autoServer"> Start the server when IRL Hub starts</label>
+          </fieldset>
+          <fieldset>
+            <legend>Advanced</legend>
+            <label>BRB clips channel <small>(Twitch, optional)</small><input name="brbChannel" autocomplete="off" spellcheck="false"></label>
+            <label>Stats port<input name="statPort" type="number" min="1" max="65535"></label>
+            <label>Dashboard port<input name="uiPort" type="number" min="1" max="65535"></label>
+          </fieldset>
+          <div class="form-actions" hidden><button class="btn primary sm" type="submit">Save settings</button><button class="btn ghost sm" type="button" data-cancel>Cancel</button></div>
+        </form>
+        <label class="check" id="autoStartRow"><input type="checkbox" id="autoStart"> Start IRL Hub with Windows</label>
+      </article>
+
+      <!-- website link (local only) -->
+      <article class="card" id="cloudCard" hidden>
+        <h2>Web dashboard</h2>
+        <div class="kv"><span>Status</span><b id="cloudStatus">–</b></div>
+        <p class="err-text" id="cloudErr" hidden></p>
+        <div id="cloudCodeBox" class="code-box" hidden>
+          <span class="muted small">Enter this code at <a id="cloudSite" target="_blank" rel="noopener"></a></span>
+          <b id="cloudCode"></b>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="cloudLink" type="button">Link to website</button>
+          <a class="btn ghost" id="cloudOpen" target="_blank" rel="noopener" hidden>Open website</a>
+          <button class="btn ghost" id="cloudUnlink" type="button" hidden>Unlink</button>
+        </div>
+      </article>
+    </div>
+    <footer class="foot" id="foot"></footer>
+  </section>
+</main>
+
+<dialog id="confirmDialog" class="dialog">
+  <h2 id="confirmTitle"></h2>
+  <p id="confirmText"></p>
+  <div class="dialog-actions">
+    <button class="btn danger" id="confirmOk" type="button">Confirm</button>
+    <button class="btn ghost" type="button" data-close>Cancel</button>
+  </div>
+</dialog>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/app.js"></script>
+</body>
+</html>

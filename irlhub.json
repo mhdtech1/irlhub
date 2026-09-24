@@ -1,0 +1,5 @@
+{
+  "api": "https://irlhub.REPLACE-WITH-CLOUDFLARE-SUBDOMAIN.workers.dev",
+  "twitchClientId": "",
+  "download": "https://github.com/mhdtech1/irlhub/releases/latest/download/IRLHub.exe"
+}
